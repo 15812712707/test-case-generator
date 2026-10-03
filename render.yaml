@@ -1,0 +1,35 @@
+# Render 一键部署蓝图（Blueprint）
+#
+# 用法：在 Render 控制台 New → Blueprint，选中本仓库，Render 会自动读取本文件。
+# 也可直接点 README 顶部的「Deploy to Render」按钮。
+#
+# 注意：Render 免费实例没有持久磁盘，实例休眠/重新部署后 SQLite 数据会重置。
+# 需要长期保存数据，请升级到付费实例并挂载 Disk（挂载路径 /app/instance）。
+
+services:
+  - type: web
+    name: testcase-generator
+    runtime: python
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -c gunicorn.conf.py run:app
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      # 会话密钥：由 Render 自动生成随机值，不落到仓库里
+      - key: SECRET_KEY
+        generateValue: true
+      # 大模型 Key：部署时在 Render 界面填写，仓库中不出现真实值
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: WEB_THREADS
+        value: "4"
+      # 大模型响应较慢，放宽 gunicorn 超时（与 gunicorn.conf.py 默认值一致）
+      - key: WEB_TIMEOUT
+        value: "120"

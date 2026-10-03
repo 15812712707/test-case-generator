@@ -2,7 +2,29 @@
 
 依据《软件需求规格说明书 V1.0》实现的完整系统，功能覆盖 R01～R10。
 
+![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
+![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-4B6BFB)
+![Tests](https://img.shields.io/badge/tests-17%2F17%20passed-brightgreen)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
+## 🚀 在线体验（免安装，点开即用）
+
+👉 **<https://893eaded747d444a8b6c64333febc561.app.workbuddy.host>**
+
+| 账号 | 密码 | 角色 |
+|---|---|---|
+| `admin` | `Admin@123` | 管理员 |
+| `tester` | `Tester@123` | 普通用户 |
+
+> ⚠️ 这是**评估用沙箱环境**，存储是临时空间，重新发布会重置数据。
+> 正式使用请走下面的「1.2 一键部署到云端」，部署到你自己的平台，数据可持久化。
+> 「智能生成」需要先配好大模型 Key：`admin` 登录 →【系统管理 → 模型与系统设置】→ 粘贴 Key →【测试连接】。
+
 ## 一、快速启动
+
+### 1.1 本地运行
 
 ```bash
 cd llm-testcase-system
@@ -30,6 +52,47 @@ python run.py
 > 手动初始化：`flask init-db`，写入示例需求：`flask seed-demo`
 
 可选环境变量：`HOST`、`PORT`、`FLASK_DEBUG`、`DATABASE_URL`、`DEEPSEEK_MODEL`、`DEEPSEEK_TIMEOUT`。
+
+### 1.2 一键部署到云端（让别人也能访问）
+
+> GitHub 只能托管代码、不能运行后端服务，所以仓库本身点开只能看到源码。
+> 要让别人「点开就能用」，需要把系统部署到一个公网平台，再把地址挂在仓库上。
+
+**方式 A：Render 一键部署（最省事，免费额度可用）**
+
+本仓库已内置 `render.yaml` 部署蓝图，点下面按钮即可：
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/15812712707/test-case-generator)
+
+部署时在 Render 界面填写 `DEEPSEEK_API_KEY`（可留空，登录后再在系统内配置）。
+首次启动会自动建表并创建 `admin / Admin@123`、`tester / Tester@123`。
+免费实例没有持久磁盘，重启/重新部署会重置数据；需要长期保存请挂载 Disk 到 `/app/instance`。
+
+**方式 B：GitHub Codespaces（在浏览器里直接跑，零本地环境）**
+
+[![Open in GitHub Codespaces](https://img.shields.io/badge/Open%20in-Codespaces-181717?logo=github&logoColor=white)](https://codespaces.new/15812712707/test-case-generator)
+
+打开后执行 `pip install -r requirements.txt && python run.py`，
+再把端口 `5000` 转发为公开链接即可分享。
+
+**方式 C：Docker（任意支持容器的平台）**
+
+```bash
+docker build -t testcase-generator .
+docker run -d -p 8000:8000 \
+  -v /data/testcase/instance:/app/instance \
+  -e SECRET_KEY=$(openssl rand -hex 32) \
+  -e DEEPSEEK_API_KEY=sk-xxxx \
+  testcase-generator
+```
+
+**方式 D：其他 PaaS / 云服务器**
+
+PythonAnywhere、Railway、Fly.io，或自备服务器 gunicorn + Nginx + certbot。
+完整步骤（含可直接复制的 systemd / Nginx 配置）见 [`docs/部署说明.md`](docs/部署说明.md)。
+
+> 部署完成后，建议把公网地址填到仓库的 **About → Website** 和本文件顶部，
+> 这样任何人打开仓库第一眼就能点到运行中的系统。
 
 ## 二、功能与需求对应关系
 
