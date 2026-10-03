@@ -529,12 +529,24 @@ class SystemE2ETest(unittest.TestCase):
             r = self.client.get(p)
             self.assertEqual(r.status_code, 200, f"{p} -> {r.status_code}")
             self.assertNotIn("Traceback", r.get_data(as_text=True), p)
+        # 已登录用户访问登录页应被重定向到工作台
         r = self.client.get("/login")
-        self.assertEqual(r.status_code, 200)
-        # 不存在的资源应给出友好提示而非堆栈
-        r = self.client.get("/testcases/999999")
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("/dashboard", r.headers["Location"])
+        # 未登录用户可正常打开登录页，未登录访问受保护页面被重定向
+        with self.app.test_client() as anon:
+            self.assertEqual(anon.get("/login").status_code, 200)
+            self.assertIn("用户登录", anon.get("/login").get_data(as_text=True))
+            r = anon.get("/testcases/")
+            self.assertEqual(r.status_code, 302)
+            self.assertIn("/login", r.headers["Location"])
+        # 不存在的资源应给出友好提示而非堆栈（重定向 + 提示信息）
+        r = self.client.get("/testcases/999999", follow_redirects=True)
         self.assertEqual(r.status_code, 200)
         self.assertIn("不存在或已被删除", r.get_data(as_text=True))
+        r = self.client.get("/requirements/999999", follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("需求不存在或已被删除", r.get_data(as_text=True))
         r = self.client.get("/no-such-page")
         self.assertEqual(r.status_code, 404)
         self.assertIn("请求的页面不存在", r.get_data(as_text=True))
