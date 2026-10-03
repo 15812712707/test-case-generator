@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}测试用例自动生成与管理系统{% endblock %}</title>
+  <!-- 前端样式统一采用 Bootstrap 5（本文件已随项目本地化，离线亦可正常显示） -->
+  <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+</head>
+<body class="bg-body-tertiary">
+{% if current_user.is_authenticated %}
+{% set nav = request.endpoint or '' %}
+<nav class="navbar navbar-expand-lg navbar-dark app-navbar shadow-sm">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand fw-semibold" href="{{ url_for('main.dashboard') }}">
+      <i class="bi bi-cpu"></i> 测试用例自动生成与管理系统
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMain">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link {{ 'active' if nav == 'main.dashboard' }}" href="{{ url_for('main.dashboard') }}"><i class="bi bi-speedometer2"></i> 工作台</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if nav.startswith('requirements.') }}" href="{{ url_for('requirements.list_requirements') }}"><i class="bi bi-journal-text"></i> 软件需求</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if nav == 'testcases.list_testcases' }}" href="{{ url_for('testcases.list_testcases') }}"><i class="bi bi-list-check"></i> 测试用例</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if nav == 'testcases.generate' }}" href="{{ url_for('testcases.generate') }}"><i class="bi bi-magic"></i> 智能生成</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if nav.startswith('recycle.') }}" href="{{ url_for('recycle.index') }}"><i class="bi bi-trash3"></i> 回收站</a></li>
+        {% if current_user.is_admin %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {{ 'active' if nav.startswith('admin.') }}" href="#" data-bs-toggle="dropdown"><i class="bi bi-gear"></i> 系统管理</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('admin.users') }}"><i class="bi bi-people"></i> 用户与角色</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin.logs') }}"><i class="bi bi-journal-code"></i> 操作日志</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin.settings') }}"><i class="bi bi-sliders"></i> 模型与系统设置</a></li>
+          </ul>
+        </li>
+        {% endif %}
+      </ul>
+      <ul class="navbar-nav align-items-lg-center">
+        <li class="nav-item me-lg-2">
+          <span class="badge rounded-pill {{ 'text-bg-success' if llm_configured else 'text-bg-secondary' }}"
+                title="{{ '大语言模型接口已配置，可使用智能生成' if llm_configured else '尚未配置大语言模型 API Key，智能生成不可用' }}">
+            <i class="bi bi-hdd-network"></i> 模型{{ '已就绪' if llm_configured else '未配置' }}
+          </span>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-person-circle"></i> {{ current_user.real_name or current_user.username }}
+            <span class="badge text-bg-light text-primary ms-1">{{ current_user.role_name }}</span>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="bi bi-person-vcard"></i> 个人信息</a></li>
+            {% if current_user.is_admin %}<li><a class="dropdown-item" href="{{ url_for('admin.settings') }}"><i class="bi bi-sliders"></i> 模型与系统设置</a></li>{% endif %}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+{% endif %}
+
+<main class="{% if current_user.is_authenticated %}container-fluid px-4 py-4{% else %}container py-5{% endif %}">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="text-center text-muted small py-3">
+  基于大语言模型的软件测试用例自动生成与管理系统 · V1.0
+</footer>
+
+<!-- 通用确认弹窗（删除等敏感操作使用，3.7 / 6.3 要求提供确认机制） -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning"></i> <span id="confirmTitle">操作确认</span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="confirmBody">确认执行该操作吗？</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-danger" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

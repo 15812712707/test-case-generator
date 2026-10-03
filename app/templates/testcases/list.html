@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_pagination %}
+{% block title %}测试用例 · 测试用例自动生成与管理系统{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">测试用例管理 <span class="text-muted fs-6">R04 / R05 / R06 / R07 / R08</span></h4>
+    <p class="text-muted small mb-0">按条件查询、查看、编辑、删除与导出测试用例。</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{{ url_for('testcases.new') }}"><i class="bi bi-plus-lg"></i> 手工新增</a>
+    <a class="btn btn-primary" href="{{ url_for('testcases.generate') }}"><i class="bi bi-magic"></i> 智能生成</a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-3">
+    <form class="row g-2 align-items-end" method="get">
+      <div class="col-md-4">
+        <label class="form-label small text-secondary mb-1">关键词</label>
+        <input type="text" class="form-control form-control-sm" name="q" value="{{ filters.q }}"
+               placeholder="用例名称 / 编号 / 预期结果">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small text-secondary mb-1">所属需求</label>
+        <select class="form-select form-select-sm" name="req">
+          <option value="">全部需求</option>
+          {% for r in requirements %}
+          <option value="{{ r.id }}" {{ 'selected' if filters.req == r.id }}>{{ r.code }} {{ r.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-secondary mb-1">分类</label>
+        <select class="form-select form-select-sm" name="category">
+          <option value="">全部分类</option>
+          {% for c in categories %}
+          <option value="{{ c }}" {{ 'selected' if filters.category == c }}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small text-secondary mb-1">优先级</label>
+        <select class="form-select form-select-sm" name="priority">
+          <option value="">全部</option>
+          {% for k, v in priorities.items() %}
+          <option value="{{ k }}" {{ 'selected' if filters.priority == k }}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small text-secondary mb-1">状态</label>
+        <select class="form-select form-select-sm" name="status">
+          <option value="">全部</option>
+          <option value="draft" {{ 'selected' if filters.status == 'draft' }}>草稿</option>
+          <option value="confirmed" {{ 'selected' if filters.status == 'confirmed' }}>已确认</option>
+        </select>
+      </div>
+      <div class="col-md-1 d-grid">
+        <button class="btn btn-sm btn-primary" type="submit">查询</button>
+      </div>
+      {% if filters.q or filters.req or filters.category or filters.priority or filters.status %}
+      <div class="col-12">
+        <a class="small" href="{{ url_for('testcases.list_testcases') }}"><i class="bi bi-arrow-counterclockwise"></i> 清除全部筛选条件</a>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<!-- 批量操作条（勾选后显示） -->
+<div class="alert alert-primary d-none py-2" id="bulkBar">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <span class="small">已选中 <strong id="bulkCount">0</strong> 条测试用例</span>
+    <div class="d-flex gap-2">
+      <a class="btn btn-sm btn-outline-primary" id="bulkExport"
+         data-base="{{ url_for('testcases.export') }}" href="#">导出所选（Excel）</a>
+      <form method="post" id="bulkDeleteForm" action="{{ url_for('testcases.batch_delete') }}"
+            data-confirm="确定删除选中的测试用例吗？删除后可在回收站还原。" data-title="批量删除">
+        <button class="btn btn-sm btn-outline-danger" type="submit">批量删除</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span class="fw-semibold">查询结果（共 {{ pagination.total }} 条）</span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted small">导出当前筛选结果：</span>
+      <div class="btn-group btn-group-sm">
+        {% for fmt, label in [('xlsx', 'Excel'), ('csv', 'CSV'), ('json', 'JSON'), ('md', 'Markdown')] %}
+        <a class="btn btn-outline-secondary"
+           href="{{ url_for('testcases.export', format=fmt, ** (request.args.to_dict() | reject_page)) }}">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:36px;"><input class="form-check-input" type="checkbox" data-check-all="ids"></th>
+          <th style="width:100px;">编号</th>
+          <th>用例名称</th>
+          <th class="d-none d-lg-table-cell" style="width:180px;">所属需求</th>
+          <th style="width:110px;">分类</th>
+          <th style="width:80px;">优先级</th>
+          <th style="width:90px;">状态</th>
+          <th style="width:150px;">更新时间</th>
+          <th style="width:150px;">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in pagination.items %}
+        <tr>
+          <td><input class="form-check-input" type="checkbox" name="ids" value="{{ c.id }}"></td>
+          <td><code>{{ c.code }}</code></td>
+          <td>
+            <a class="text-decoration-none fw-semibold" href="{{ url_for('testcases.detail', case_id=c.id) }}">{{ c.title }}</a>
+            {% if c.source == 'llm' %}<span class="badge text-bg-light ms-1" title="由大语言模型生成">模型</span>{% endif %}
+          </td>
+          <td class="d-none d-lg-table-cell small text-muted">
+            {{ (c.requirement.code ~ ' ' ~ c.requirement.name) if c.requirement else '—' }}
+          </td>
+          <td><span class="badge text-bg-light">{{ c.category }}</span></td>
+          <td><span class="badge {{ {'high':'text-bg-danger','medium':'text-bg-warning','low':'text-bg-secondary'}[c.priority] }}">{{ c.priority_name }}</span></td>
+          <td><span class="badge {{ 'text-bg-success' if c.status == 'confirmed' else 'text-bg-warning' }}">{{ c.status_name }}</span></td>
+          <td class="small text-muted">{{ c.updated_at.strftime('%Y-%m-%d %H:%M') if c.updated_at else '' }}</td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <a class="btn btn-outline-primary" href="{{ url_for('testcases.detail', case_id=c.id) }}">查看</a>
+              <a class="btn btn-outline-secondary" href="{{ url_for('testcases.edit', case_id=c.id) }}">编辑</a>
+              <form method="post" action="{{ url_for('testcases.delete', case_id=c.id) }}"
+                    data-confirm="删除后用例 {{ c.code }} 将移入回收站，可在回收站还原。确定删除吗？"
+                    data-title="删除测试用例 {{ c.code }}">
+                <button class="btn btn-outline-danger btn-sm" type="submit">删除</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="9" class="text-center text-muted py-5">
+          {% if filters.q or filters.req or filters.category or filters.priority or filters.status %}
+            没有符合条件的测试用例，请调整查询条件后重试。
+          {% else %}
+            暂无测试用例，可点击「智能生成」由模型依据需求自动生成，或「手工新增」录入。
+          {% endif %}
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{ render_pagination(pagination, 'testcases.list_testcases') }}
+{% endblock %}

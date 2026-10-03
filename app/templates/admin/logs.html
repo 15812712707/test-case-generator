@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_pagination %}
+{% block title %}操作日志 · 系统管理{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">操作日志 <span class="text-muted fs-6">R10</span></h4>
+    <p class="text-muted small mb-0">记录登录、需求、用例、导出与权限等关键操作，便于追踪与维护。</p>
+  </div>
+  <a class="btn btn-outline-primary"
+     href="{{ url_for('admin.logs_export', username=username, days=days) }}">
+    <i class="bi bi-download"></i> 导出日志（CSV）
+  </a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-3">
+    <form class="row g-2 align-items-end" method="get">
+      <div class="col-md-3">
+        <label class="form-label small text-secondary mb-1">操作人</label>
+        <input type="text" class="form-control form-control-sm" name="username" value="{{ username }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small text-secondary mb-1">操作类型</label>
+        <input class="form-control form-control-sm" name="action" list="actionOptions" value="{{ action }}">
+        <datalist id="actionOptions">
+          {% for a in actions %}<option value="{{ a }}">{% endfor %}
+        </datalist>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-secondary mb-1">结果</label>
+        <select class="form-select form-select-sm" name="result">
+          <option value="">全部</option>
+          <option value="success" {{ 'selected' if result == 'success' }}>成功</option>
+          <option value="failed" {{ 'selected' if result == 'failed' }}>失败</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-secondary mb-1">时间范围</label>
+        <select class="form-select form-select-sm" name="days">
+          {% for d, label in [(0, '全部'), (1, '最近 1 天'), (7, '最近 7 天'), (30, '最近 30 天')] %}
+          <option value="{{ d }}" {{ 'selected' if days == d }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button class="btn btn-sm btn-primary" type="submit">查询</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white fw-semibold">日志记录（共 {{ pagination.total }} 条）</div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:60px;">ID</th>
+          <th style="width:160px;">时间</th>
+          <th style="width:110px;">操作人</th>
+          <th style="width:140px;">操作类型</th>
+          <th style="width:110px;">对象</th>
+          <th style="width:80px;">结果</th>
+          <th style="width:120px;">IP</th>
+          <th>详情</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for log in pagination.items %}
+        <tr>
+          <td class="text-muted">{{ log.id }}</td>
+          <td class="small">{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '' }}</td>
+          <td class="small fw-semibold">{{ log.username }}</td>
+          <td><span class="badge text-bg-light">{{ log.action }}</span></td>
+          <td class="small text-muted">
+            {{ log.target_type or '—' }}{% if log.target_id %}<span class="text-secondary"> #{{ log.target_id }}</span>{% endif %}
+          </td>
+          <td>
+            <span class="badge {{ 'text-bg-success' if log.result == 'success' else 'text-bg-danger' }}">
+              {{ '成功' if log.result == 'success' else '失败' }}
+            </span>
+          </td>
+          <td class="small text-muted">{{ log.ip or '—' }}</td>
+          <td class="small log-detail">{{ log.detail or '—' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-5">没有符合条件的日志记录。</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{ render_pagination(pagination, 'admin.logs') }}
+{% endblock %}

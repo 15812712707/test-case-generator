@@ -1,0 +1,9 @@
+# 基于大语言模型的软件测试用例自动生成与管理系统 —— 依赖清单
+# 运行环境：Python 3.12 及以上（说明书 2.5）
+Flask>=3.0,<4.0            # Web 框架（后端）
+Flask-SQLAlchemy>=3.1      # ORM 集成（数据库访问）
+Flask-Login>=0.6.3         # 会话与登录状态管理（R01）
+SQLAlchemy>=2.0            # ORM 核心
+requests>=2.31             # 调用大语言模型 HTTP 接口（R03）
+python-dotenv>=1.0         # 读取 .env 配置
+openpyxl>=3.1              # 导出 Excel（R08）

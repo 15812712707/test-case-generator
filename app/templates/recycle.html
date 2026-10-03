@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_pagination %}
+{% block title %}回收站 · 测试用例自动生成与管理系统{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">回收站 <span class="text-muted fs-6">R07</span></h4>
+    <p class="text-muted small mb-0">
+      删除采用逻辑删除，数据不会立即消失。普通用户可还原本人删除的记录，仅管理员可彻底删除。
+    </p>
+  </div>
+  {% if current_user.is_admin and pagination.total %}
+  <form method="post" action="{{ url_for('recycle.clear') }}"
+        data-confirm="将彻底删除{{ label }}回收站中的 {{ pagination.total }} 条记录，此操作不可恢复！确定继续吗？"
+        data-title="清空回收站">
+    <input type="hidden" name="type" value="{{ kind }}">
+    <button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash3"></i> 清空回收站</button>
+  </form>
+  {% endif %}
+</div>
+
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {{ 'active' if kind == 'case' }}" href="{{ url_for('recycle.index', type='case') }}">
+      测试用例 <span class="badge text-bg-light ms-1">{{ counts.case }}</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {{ 'active' if kind == 'requirement' }}" href="{{ url_for('recycle.index', type='requirement') }}">
+      软件需求 <span class="badge text-bg-light ms-1">{{ counts.requirement }}</span>
+    </a>
+  </li>
+</ul>
+
+{% if not current_user.is_admin %}
+<div class="alert alert-light border small py-2">
+  <i class="bi bi-info-circle"></i> 您当前是普通用户，只能看到并还原自己删除的记录。
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:110px;">编号</th>
+          <th>名称</th>
+          <th style="width:110px;">创建人</th>
+          <th style="width:110px;">删除人</th>
+          <th style="width:150px;">删除时间</th>
+          <th style="width:180px;">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for obj in pagination.items %}
+        <tr>
+          <td><code>{{ obj.code }}</code></td>
+          <td>
+            {% if kind == 'case' %}
+              {{ obj.title }}
+              <div class="text-muted small">
+                所属需求：{{ (obj.requirement.code ~ ' ' ~ obj.requirement.name) if obj.requirement else '—' }}
+              </div>
+            {% else %}
+              {{ obj.name }}
+            {% endif %}
+          </td>
+          <td class="small">{{ obj.creator.username if obj.creator else '—' }}</td>
+          <td class="small text-muted">
+            {% if obj.deleted_by_id and obj.deleted_by_id == obj.created_by_id %}本人
+            {% else %}管理员{% endif %}
+          </td>
+          <td class="small text-muted">{{ obj.deleted_at.strftime('%Y-%m-%d %H:%M') if obj.deleted_at else '—' }}</td>
+          <td>
+            <div class="d-flex gap-1">
+              <form method="post" action="{{ url_for('recycle.restore', kind=kind, obj_id=obj.id) }}"
+                    data-confirm="确定还原 {{ obj.code }} 吗？" data-title="还原记录">
+                <button class="btn btn-sm btn-outline-success" type="submit">
+                  <i class="bi bi-arrow-counterclockwise"></i> 还原
+                </button>
+              </form>
+              {% if current_user.is_admin %}
+              <form method="post" action="{{ url_for('recycle.purge', kind=kind, obj_id=obj.id) }}"
+                    data-confirm="将彻底删除 {{ obj.code }}，此操作不可恢复！{% if kind == 'requirement' %}其关联用例也会一并删除。{% endif %}"
+                    data-title="彻底删除">
+                <button class="btn btn-sm btn-outline-danger" type="submit">
+                  <i class="bi bi-x-octagon"></i> 彻底删除
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-5">
+          回收站中暂无{{ label }}记录。
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{ render_pagination(pagination, 'recycle.index') }}
+
+<div class="card border-0 shadow-sm mt-3">
+  <div class="card-body small text-muted">
+    <strong>删除策略（对应说明书 3.7「是否逻辑删除待确定」）</strong>：系统采用逻辑删除，
+    删除操作的执行顺序为「选择 → 点击删除 → 二次确认 → 权限检查 → 执行」；
+    权限检查规则为管理员可删除全部记录，普通用户仅能删除本人创建的记录，越权操作会被拒绝并记入操作日志。
+    彻底删除与清空回收站仅管理员可执行，且不可恢复。
+  </div>
+</div>
+{% endblock %}

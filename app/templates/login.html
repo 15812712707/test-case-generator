@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}登录 · 测试用例自动生成与管理系统{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-4">
+    <div class="text-center mb-4">
+      <div class="stat-icon bg-primary-subtle text-primary mx-auto mb-3">
+        <i class="bi bi-cpu fs-3"></i>
+      </div>
+      <h4 class="fw-bold mb-1">测试用例自动生成与管理系统</h4>
+      <p class="text-muted small mb-0">基于大语言模型的软件需求 → 测试用例</p>
+    </div>
+    <div class="card shadow border-0">
+      <div class="card-body p-4">
+        <h6 class="card-title mb-3 text-secondary">用户登录</h6>
+        <form method="post" novalidate>
+          <div class="mb-3">
+            <label class="form-label" for="username">用户名</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person"></i></span>
+              <input type="text" class="form-control" id="username" name="username"
+                     value="{{ username }}" required autofocus autocomplete="username">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="password">密码</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-lock"></i></span>
+              <input type="password" class="form-control" id="password" name="password"
+                     required autocomplete="current-password">
+            </div>
+          </div>
+          <button class="btn btn-primary w-100 py-2" type="submit"
+                  data-keep-enabled="1"><i class="bi bi-box-arrow-in-right"></i> 登录</button>
+        </form>
+        <div class="alert alert-light border mt-3 mb-0 small text-muted">
+          <div class="fw-semibold text-secondary mb-1">初始账号（首次部署执行 init-db 时生成）</div>
+          管理员：<code>admin / Admin@123</code><br>
+          普通用户：<code>tester / Tester@123</code>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-muted small mt-3 mb-0">
+      {% if not llm_configured %}
+      <i class="bi bi-info-circle"></i> 大语言模型 API Key 尚未配置，登录后可由管理员在【系统管理 → 模型与系统设置】中填写。
+      {% endif %}
+    </p>
+  </div>
+</div>
+{% endblock %}

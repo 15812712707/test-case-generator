@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ item.code }} {{ item.name }} · 软件需求{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{{ url_for('requirements.list_requirements') }}">软件需求</a></li>
+    <li class="breadcrumb-item active">{{ item.code }}</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-1">{{ item.name }} <code class="fs-6 text-muted">{{ item.code }}</code></h4>
+    <p class="text-muted small mb-0">
+      创建人 {{ item.creator.username if item.creator else '—' }} ·
+      创建于 {{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }} ·
+      更新于 {{ item.updated_at.strftime('%Y-%m-%d %H:%M') if item.updated_at else '—' }}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-primary" href="{{ url_for('testcases.generate') }}?requirement_id={{ item.id }}">
+      <i class="bi bi-magic"></i> 生成测试用例
+    </a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('requirements.edit', req_id=item.id) }}">
+      <i class="bi bi-pencil"></i> 编辑
+    </a>
+    {% if current_user.is_admin %}
+    <form method="post" action="{{ url_for('requirements.delete', req_id=item.id) }}"
+          data-confirm="删除后该需求及其 {{ cases|length }} 条关联用例将移入回收站，确定删除吗？"
+          data-title="删除软件需求">
+      <button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash3"></i> 删除</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">需求内容</div>
+      <div class="card-body">
+        <h6 class="text-secondary small mb-1">需求描述</h6>
+        <div class="pre-wrap mb-3">{{ item.description or '（未填写）' }}</div>
+        <h6 class="text-secondary small mb-1">业务规则</h6>
+        <div class="pre-wrap mb-0">{{ item.business_rules or '（未填写）' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">关联测试用例（{{ cases|length }}）</span>
+        <a class="small" href="{{ url_for('testcases.list_testcases', req=item.id) }}">在用例列表中查看</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr><th style="width:100px;">编号</th><th>用例名称</th><th style="width:80px;">优先级</th>
+                <th style="width:80px;">状态</th><th style="width:70px;">来源</th></tr>
+          </thead>
+          <tbody>
+          {% for c in cases %}
+            <tr>
+              <td><a href="{{ url_for('testcases.detail', case_id=c.id) }}">{{ c.code }}</a></td>
+              <td>{{ c.title }}</td>
+              <td><span class="badge {{ {'high':'text-bg-danger','medium':'text-bg-warning','low':'text-bg-secondary'}[c.priority] }}">{{ c.priority_name }}</span></td>
+              <td><span class="badge {{ 'text-bg-success' if c.status == 'confirmed' else 'text-bg-warning' }}">{{ c.status_name }}</span></td>
+              <td><span class="badge text-bg-light">{{ '模型生成' if c.source == 'llm' else '手工录入' }}</span></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-4">
+              该需求下暂无测试用例，可点击「生成测试用例」调用模型自动生成。
+            </td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

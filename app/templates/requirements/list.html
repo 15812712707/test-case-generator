@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_pagination %}
+{% block title %}软件需求 · 测试用例自动生成与管理系统{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">软件需求管理 <span class="text-muted fs-6">R02</span></h4>
+    <p class="text-muted small mb-0">录入、查看和维护用于生成测试用例的软件需求。</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('requirements.new') }}">
+    <i class="bi bi-plus-lg"></i> 新建需求
+  </a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-3">
+    <form class="row g-2 align-items-center" method="get">
+      <div class="col-md-6">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control" name="q" value="{{ keyword }}"
+                 placeholder="按需求名称、编号或描述检索">
+          <button class="btn btn-outline-primary" type="submit">查询</button>
+          {% if keyword %}<a class="btn btn-outline-secondary" href="{{ url_for('requirements.list_requirements') }}">重置</a>{% endif %}
+        </div>
+      </div>
+      <div class="col-md-6 text-md-end text-muted small">
+        共 <strong>{{ total }}</strong> 条需求
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:110px;">需求编号</th>
+          <th>需求名称</th>
+          <th class="d-none d-lg-table-cell">需求描述</th>
+          <th style="width:90px;">关联用例</th>
+          <th style="width:100px;">创建人</th>
+          <th style="width:150px;">更新时间</th>
+          <th style="width:150px;">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in pagination.items %}
+        <tr>
+          <td><code>{{ r.code }}</code></td>
+          <td>
+            <a class="text-decoration-none fw-semibold" href="{{ url_for('requirements.detail', req_id=r.id) }}">{{ r.name }}</a>
+            {% if not r.description %}<span class="badge text-bg-warning ms-1">待补充描述</span>{% endif %}
+          </td>
+          <td class="d-none d-lg-table-cell text-muted small">
+            <div class="text-clamp-2">{{ r.description or '—' }}</div>
+          </td>
+          <td>
+            {% set n = r.testcases.filter_by(is_deleted=False).count() %}
+            <span class="badge {{ 'text-bg-info' if n else 'text-bg-light' }}">{{ n }}</span>
+          </td>
+          <td class="small">{{ r.creator.username if r.creator else '—' }}</td>
+          <td class="small text-muted">{{ r.updated_at.strftime('%Y-%m-%d %H:%M') if r.updated_at else '' }}</td>
+          <td>
+            <div class="btn-group btn-group-sm">
+              <a class="btn btn-outline-primary" href="{{ url_for('requirements.detail', req_id=r.id) }}">查看</a>
+              <a class="btn btn-outline-secondary" href="{{ url_for('requirements.edit', req_id=r.id) }}">编辑</a>
+              <a class="btn btn-outline-success" href="{{ url_for('testcases.generate') }}?requirement_id={{ r.id }}">生成</a>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-5">
+          暂无软件需求，点击右上角「新建需求」开始录入。
+        </td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{ render_pagination(pagination, 'requirements.list_requirements') }}
+{% endblock %}

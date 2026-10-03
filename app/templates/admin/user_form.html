@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑用户' if item else '新建用户' }} · 系统管理{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{{ url_for('admin.users') }}">用户与角色</a></li>
+    <li class="breadcrumb-item active">{{ '编辑用户' if item else '新建用户' }}</li>
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">
+        {{ ('编辑用户 ' ~ item.username) if item else '新建用户' }}
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          <div class="mb-3">
+            <label class="form-label" for="username">用户名 <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="username" name="username"
+                   value="{{ form.get('username', '') }}" {{ 'disabled' if item }} required maxlength="64">
+            {% if item %}<div class="form-text">用户名创建后不可修改。</div>{% endif %}
+          </div>
+
+          {% if not item %}
+          <div class="mb-3">
+            <label class="form-label" for="password">初始密码 <span class="text-danger">*</span></label>
+            <input type="password" class="form-control" id="password" name="password"
+                   minlength="6" required autocomplete="new-password">
+            <div class="form-text">不少于 6 位；系统仅保存密码摘要，不会明文存储或展示。</div>
+          </div>
+          {% endif %}
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="real_name">姓名</label>
+              <input type="text" class="form-control" id="real_name" name="real_name"
+                     value="{{ form.get('real_name', '') }}" maxlength="64">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="email">邮箱</label>
+              <input type="email" class="form-control" id="email" name="email"
+                     value="{{ form.get('email', '') }}" maxlength="128">
+            </div>
+          </div>
+
+          <div class="mb-3 mt-3">
+            <label class="form-label" for="role">角色 <span class="text-danger">*</span></label>
+            <select class="form-select" id="role" name="role" required>
+              {% set cur = form.get('role', 'user') %}
+              {% for k, v in role_names.items() %}
+              <option value="{{ k }}" {{ 'selected' if cur == k }}>{{ v }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              管理员可管理用户、角色、日志与模型设置；普通用户仅可使用需求与用例相关功能。
+            </div>
+          </div>
+
+          {% if item and item.id == current_user.id %}
+          <div class="alert alert-warning small py-2">
+            <i class="bi bi-info-circle"></i> 这是您自己的账号，系统不允许取消自己的管理员权限。
+          </div>
+          {% endif %}
+
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-check2"></i> 保存</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin.users') }}">取消</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

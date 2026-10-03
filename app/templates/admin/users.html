@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_pagination %}
+{% block title %}用户与角色 · 系统管理{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">用户与角色管理 <span class="text-muted fs-6">R09</span></h4>
+    <p class="text-muted small mb-0">
+      管理员可创建用户、分配角色、重置密码与启用/禁用账号。普通用户仅能访问授权功能。
+    </p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('admin.user_new') }}"><i class="bi bi-person-plus"></i> 新建用户</a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-3">
+    <form class="row g-2 align-items-center" method="get">
+      <div class="col-md-5">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control" name="q" value="{{ keyword }}" placeholder="按用户名或姓名检索">
+          <button class="btn btn-outline-primary" type="submit">查询</button>
+          {% if keyword %}<a class="btn btn-outline-secondary" href="{{ url_for('admin.users') }}">重置</a>{% endif %}
+        </div>
+      </div>
+      <div class="col-md-7 text-md-end text-muted small">共 <strong>{{ pagination.total }}</strong> 个用户</div>
+    </form>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th style="width:60px;">ID</th>
+          <th style="width:150px;">用户名</th>
+          <th style="width:120px;">姓名</th>
+          <th class="d-none d-md-table-cell">邮箱</th>
+          <th style="width:100px;">角色</th>
+          <th style="width:90px;">状态</th>
+          <th style="width:90px;">需求数</th>
+          <th style="width:90px;">用例数</th>
+          <th style="width:140px;">创建时间</th>
+          <th style="width:230px;">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in pagination.items %}
+        <tr>
+          <td class="text-muted">{{ u.id }}</td>
+          <td class="fw-semibold">
+            {{ u.username }}
+            {% if u.id == current_user.id %}<span class="badge text-bg-info ms-1">当前登录</span>{% endif %}
+          </td>
+          <td>{{ u.real_name or '—' }}</td>
+          <td class="d-none d-md-table-cell text-muted small">{{ u.email or '—' }}</td>
+          <td>
+            <span class="badge {{ 'text-bg-danger' if u.is_admin else 'text-bg-secondary' }}">{{ u.role_name }}</span>
+          </td>
+          <td>
+            <span class="badge {{ 'text-bg-success' if u.status == 'active' else 'text-bg-dark' }}">
+              {{ '正常' if u.status == 'active' else '已禁用' }}
+            </span>
+          </td>
+          <td>{{ u.requirements.filter_by(is_deleted=False).count() }}</td>
+          <td>{{ u.testcases.filter_by(is_deleted=False).count() }}</td>
+          <td class="small text-muted">{{ u.created_at.strftime('%Y-%m-%d %H:%M') if u.created_at else '' }}</td>
+          <td>
+            <div class="d-flex gap-1 flex-wrap">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.user_edit', user_id=u.id) }}">编辑</a>
+
+              <form method="post" action="{{ url_for('admin.user_reset_password', user_id=u.id) }}"
+                    class="d-flex gap-1" data-confirm="将重置用户 {{ u.username }} 的密码，确定吗？"
+                    data-title="重置密码">
+                <input type="password" class="form-control form-control-sm" name="new_password"
+                       placeholder="新密码" style="width:92px;" minlength="6" required>
+                <button class="btn btn-sm btn-outline-warning" type="submit">重置</button>
+              </form>
+
+              {% if u.id != current_user.id %}
+              <form method="post" action="{{ url_for('admin.user_toggle_status', user_id=u.id) }}"
+                    data-confirm="确定{{ '禁用' if u.status == 'active' else '启用' }}用户 {{ u.username }} 吗？"
+                    data-title="启用/禁用账号">
+                <button class="btn btn-sm btn-outline-dark" type="submit">
+                  {{ '禁用' if u.status == 'active' else '启用' }}
+                </button>
+              </form>
+              <form method="post" action="{{ url_for('admin.user_delete', user_id=u.id) }}"
+                    data-confirm="删除用户 {{ u.username }} 前会检查其是否已创建需求或用例，确定继续吗？"
+                    data-title="删除用户">
+                <button class="btn btn-sm btn-outline-danger" type="submit">删除</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="10" class="text-center text-muted py-5">未找到匹配的用户。</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{{ render_pagination(pagination, 'admin.users') }}
+
+<div class="card border-0 shadow-sm mt-3">
+  <div class="card-header bg-white fw-semibold">角色权限矩阵（R09）</div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>功能</th><th class="text-center" style="width:120px;">普通用户</th><th class="text-center" style="width:120px;">管理员</th></tr></thead>
+      <tbody>
+        {% set matrix = [
+          ('R01 登录 / 个人信息', '允许', '允许'),
+          ('R02 需求录入、查看', '允许', '允许'),
+          ('R02 删除需求', '禁止', '允许'),
+          ('R03 调用模型生成用例', '允许', '允许'),
+          ('R04/R05 查看、编辑、保存用例', '允许', '允许'),
+          ('R06/R08 查询、导出用例', '允许', '允许'),
+          ('R07 删除用例', '仅本人创建', '全部'),
+          ('回收站还原', '仅本人创建', '全部'),
+          ('回收站彻底删除 / 清空', '禁止', '允许'),
+          ('R09 用户与角色管理', '禁止', '允许'),
+          ('R10 查看与导出操作日志', '禁止', '允许'),
+          ('模型与系统设置', '禁止', '允许'),
+        ] %}
+        {% for name, u, a in matrix %}
+        <tr>
+          <td>{{ name }}</td>
+          <td class="text-center {{ 'text-success' if u == '允许' else ('text-muted' if u.startswith('仅') else 'text-danger') }}">{{ u }}</td>
+          <td class="text-center text-success">{{ a }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

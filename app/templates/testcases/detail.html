@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ item.code }} {{ item.title }} · 测试用例{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{{ url_for('testcases.list_testcases') }}">测试用例</a></li>
+    <li class="breadcrumb-item active">{{ item.code }}</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-1">{{ item.title }}</h4>
+    <p class="text-muted small mb-0">
+      <code>{{ item.code }}</code>
+      <span class="badge {{ {'high':'text-bg-danger','medium':'text-bg-warning','low':'text-bg-secondary'}[item.priority] }} ms-1">{{ item.priority_name }}优先级</span>
+      <span class="badge text-bg-light">{{ item.category }}</span>
+      <span class="badge {{ 'text-bg-success' if item.status == 'confirmed' else 'text-bg-warning' }}">{{ item.status_name }}</span>
+      <span class="badge text-bg-light">{{ '大语言模型生成' if item.source == 'llm' else '手工录入' }}</span>
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if item.status != 'confirmed' %}
+    <form method="post" action="{{ url_for('testcases.confirm', case_id=item.id) }}"
+          data-confirm="确认为正式用例后状态将变为「已确认」，确定吗？" data-title="确认测试用例">
+      <button class="btn btn-success" type="submit"><i class="bi bi-check2-circle"></i> 确认用例</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('testcases.edit', case_id=item.id) }}">
+      <i class="bi bi-pencil"></i> 编辑
+    </a>
+    <a class="btn btn-outline-primary" href="{{ url_for('testcases.export', format='xlsx', ids=item.id) }}">
+      <i class="bi bi-download"></i> 导出本条
+    </a>
+    <form method="post" action="{{ url_for('testcases.delete', case_id=item.id) }}"
+          data-confirm="删除后用例 {{ item.code }} 将移入回收站，可在回收站还原。确定删除吗？"
+          data-title="删除测试用例">
+      <button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash3"></i> 删除</button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold">前置条件</div>
+      <div class="card-body pre-wrap">{{ item.precondition or '（未填写）' }}</div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold">测试步骤</div>
+      <div class="card-body">
+        {% if item.step_list %}
+        <ol class="mb-0 ps-3">
+          {% for s in item.step_list %}<li class="mb-1">{{ s }}</li>{% endfor %}
+        </ol>
+        {% else %}
+        <span class="text-muted">（未填写）</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">预期结果</div>
+      <div class="card-body pre-wrap">{{ item.expected_result or '（未填写）' }}</div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold">测试数据</div>
+      <div class="card-body pre-wrap">{{ item.test_data or '（未填写）' }}</div>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">关联信息</div>
+      <ul class="list-group list-group-flush small">
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">所属需求</span>
+          <span class="text-end">
+            {% if item.requirement %}
+            <a href="{{ url_for('requirements.detail', req_id=item.requirement.id) }}">
+              {{ item.requirement.code }} {{ item.requirement.name }}</a>
+            {% else %}—{% endif %}
+          </span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">创建人</span><span>{{ item.creator.username if item.creator else '—' }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">创建时间</span>
+          <span>{{ item.created_at.strftime('%Y-%m-%d %H:%M') if item.created_at else '—' }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">最近更新</span>
+          <span>{{ item.updated_at.strftime('%Y-%m-%d %H:%M') if item.updated_at else '—' }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">来源</span>
+          <span>{{ '大语言模型生成' if item.source == 'llm' else '手工录入' }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

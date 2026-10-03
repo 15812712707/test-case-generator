@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}模型与系统设置 · 系统管理{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <h4 class="mb-0">模型与系统设置</h4>
+  <p class="text-muted small mb-0">
+    配置大语言模型接口（说明书 5.2）。凭据仅保存在本机数据库中，界面只显示掩码，不完整回显。
+  </p>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">大语言模型接口</div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          <input type="hidden" name="action" value="save">
+
+          <div class="mb-3">
+            <label class="form-label" for="api_key">API Key</label>
+            <input type="password" class="form-control" id="api_key" name="api_key"
+                   placeholder="{{ '当前：' ~ setting.masked_key if setting.masked_key else '尚未配置，请粘贴 DeepSeek API Key' }}"
+                   autocomplete="off">
+            <div class="form-text">
+              留空表示不修改已有 Key。填写后立即生效，无需重启服务。
+              当前生效来源：<strong>{{ llm.source }}</strong>。
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="base_url">接口地址</label>
+            <input type="url" class="form-control" id="base_url" name="base_url"
+                   value="{{ setting.base_url or llm.base_url }}" required>
+            <div class="form-text">DeepSeek 默认：<code>https://api.deepseek.com</code></div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label class="form-label" for="model">模型名称</label>
+              <input type="text" class="form-control" id="model" name="model"
+                     value="{{ setting.model or llm.model }}" required>
+              <div class="form-text">例如 <code>deepseek-chat</code>（通用对话）、<code>deepseek-reasoner</code>（推理）。</div>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label" for="timeout">请求超时（秒）</label>
+              <input type="number" class="form-control" id="timeout" name="timeout"
+                     value="{{ setting.timeout or llm.timeout }}" min="5" max="600" required>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-check2"></i> 保存配置</button>
+            <button class="btn btn-outline-secondary" type="submit"
+                    formaction="{{ url_for('admin.settings_test') }}" formnovalidate
+                    data-keep-enabled="1">
+              <i class="bi bi-plug"></i> 测试连接
+            </button>
+          </div>
+        </form>
+
+        {% if setting.masked_key %}
+        <hr>
+        <form method="post" class="d-flex align-items-center justify-content-between"
+              data-confirm="清除后将回退使用 .env 中的配置，确定清除吗？" data-title="清除 API Key">
+          <input type="hidden" name="action" value="clear_key">
+          <span class="small text-muted">清除数据库中的 API Key（回退使用 .env）</span>
+          <button class="btn btn-sm btn-outline-danger" type="submit">清除</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold">当前运行状态</div>
+      <ul class="list-group list-group-flush small">
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">模型可用性</span>
+          <span class="badge {{ 'text-bg-success' if llm.api_key else 'text-bg-secondary' }}">
+            {{ '已配置' if llm.api_key else '未配置' }}
+          </span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">生效来源</span><span>{{ llm.source }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">接口地址</span><span class="text-end text-break ms-3">{{ llm.base_url }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">模型名称</span><span>{{ llm.model }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">超时设置</span><span>{{ llm.timeout }} 秒</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">最近修改</span>
+          <span>{{ setting.updated_at.strftime('%Y-%m-%d %H:%M') if setting.updated_at else '—' }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">配置说明</div>
+      <div class="card-body small text-muted">
+        <p class="mb-2">
+          1. 凭据可通过两种方式提供：项目根目录 <code>.env</code> 中的
+          <code>DEEPSEEK_API_KEY</code>，或本页面填写（本页面优先级更高）。
+        </p>
+        <p class="mb-2">
+          2. <strong>未配置时系统不会生成任何内容</strong>，只会在生成页给出明确提示，
+          不会用本地假数据代替模型返回（说明书 3.3 异常处理要求）。
+        </p>
+        <p class="mb-0">
+          3. 模型服务异常或返回格式无法解析时，生成任务会失败并给出原因，
+          已保存的需求与用例数据不受影响（说明书 4.3 可靠性要求）。
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

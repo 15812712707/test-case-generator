@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑测试用例' if item else '新增测试用例' }} · 测试用例自动生成与管理系统{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{{ url_for('testcases.list_testcases') }}">测试用例</a></li>
+    <li class="breadcrumb-item active">{{ '编辑 ' ~ item.code if item else '手工新增' }}</li>
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">
+        {{ '编辑测试用例 ' ~ item.code if item else '手工新增测试用例' }}
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label" for="title">用例名称 <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="title" name="title" maxlength="200"
+                     value="{{ form.get('title', '') }}" required placeholder="例如：用户名不存在时的登录校验">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="requirement_id">所属需求 <span class="text-danger">*</span></label>
+              <select class="form-select" id="requirement_id" name="requirement_id" required>
+                <option value="">请选择软件需求</option>
+                {% for r in requirements %}
+                <option value="{{ r.id }}" {{ 'selected' if form.get('requirement_id')|string == r.id|string }}>
+                  {{ r.code }} {{ r.name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label" for="category">用例分类</label>
+              <input class="form-control" id="category" name="category" list="categoryOptions"
+                     value="{{ form.get('category', '功能测试') }}">
+              <datalist id="categoryOptions">
+                <option value="功能测试"><option value="边界测试"><option value="异常测试">
+                <option value="权限测试"><option value="性能测试"><option value="兼容性测试">
+              </datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="priority">优先级</label>
+              <select class="form-select" id="priority" name="priority">
+                {% set cur = form.get('priority', 'medium') %}
+                {% for k, v in PRIORITY_NAMES.items() %}
+                <option value="{{ k }}" {{ 'selected' if cur == k }}>{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% if item %}
+            <div class="col-md-4">
+              <label class="form-label">当前状态</label>
+              <input class="form-control" value="{{ item.status_name }}" disabled>
+            </div>
+            {% endif %}
+
+            <div class="col-12">
+              <label class="form-label" for="precondition">前置条件</label>
+              <textarea class="form-control" id="precondition" name="precondition" rows="2"
+                        placeholder="执行本用例前需要满足的条件">{{ form.get('precondition', '') }}</textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="steps">测试步骤</label>
+              <textarea class="form-control" id="steps" name="steps" rows="6"
+                        placeholder="每行一个步骤，例如：&#10;1. 打开登录页面&#10;2. 输入用户名&#10;3. 点击登录">{{ form.get('steps', '') }}</textarea>
+              <div class="form-text">每行一个步骤，系统按行展示为有序步骤。</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="test_data">测试数据</label>
+              <textarea class="form-control" id="test_data" name="test_data" rows="4"
+                        placeholder="例如：用户名 admin，密码 Admin@123">{{ form.get('test_data', '') }}</textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="expected_result">预期结果</label>
+              <textarea class="form-control" id="expected_result" name="expected_result" rows="4"
+                        placeholder="例如：登录成功并跳转到系统首页">{{ form.get('expected_result', '') }}</textarea>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-check2"></i> 保存</button>
+            <a class="btn btn-outline-secondary"
+               href="{{ url_for('testcases.detail', case_id=item.id) if item else url_for('testcases.list_testcases') }}">
+              取消
+            </a>
+          </div>
+          <p class="text-muted small mt-3 mb-0">
+            <i class="bi bi-info-circle"></i> 取消修改不会覆盖原有内容；保存前系统会校验用例名称与所属需求。
+          </p>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

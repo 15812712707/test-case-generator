@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}智能生成测试用例 · 测试用例自动生成与管理系统{% endblock %}
+
+{% macro result_rows(rows) %}
+{% for r in rows %}
+<tr data-row="{{ loop.index0 }}">
+  <td class="text-center">
+    <input class="form-check-input" type="checkbox" name="rows-{{ loop.index0 }}-selected" checked
+           onchange="window.genUpdateCount && window.genUpdateCount()">
+  </td>
+  <td>
+    <input type="text" class="form-control form-control-sm" name="rows-{{ loop.index0 }}-title"
+           value="{{ r.title }}" maxlength="200" required>
+  </td>
+  <td>
+    <input type="text" class="form-control form-control-sm" name="rows-{{ loop.index0 }}-category"
+           value="{{ r.category }}" list="categoryOptions">
+  </td>
+  <td>
+    <select class="form-select form-select-sm" name="rows-{{ loop.index0 }}-priority">
+      {% for k, v in PRIORITY_NAMES.items() %}
+      <option value="{{ k }}" {{ 'selected' if r.priority == k }}>{{ v }}</option>
+      {% endfor %}
+    </select>
+  </td>
+  <td><textarea class="form-control form-control-sm" name="rows-{{ loop.index0 }}-precondition" rows="2">{{ r.precondition }}</textarea></td>
+  <td><textarea class="form-control form-control-sm" name="rows-{{ loop.index0 }}-steps" rows="4">{{ r.steps }}</textarea></td>
+  <td><textarea class="form-control form-control-sm" name="rows-{{ loop.index0 }}-test_data" rows="2">{{ r.test_data }}</textarea></td>
+  <td><textarea class="form-control form-control-sm" name="rows-{{ loop.index0 }}-expected_result" rows="3">{{ r.expected_result }}</textarea></td>
+  <td class="text-center">
+    <button type="button" class="btn btn-sm btn-outline-danger" title="移除该行"
+            onclick="this.closest('tr').remove(); window.genUpdateCount && window.genUpdateCount();">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </td>
+</tr>
+{% endfor %}
+{% endmacro %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0">测试用例智能生成 <span class="text-muted fs-6">R03</span></h4>
+    <p class="text-muted small mb-0">选择软件需求，调用大语言模型自动生成结构化测试用例，经人工核对后保存。</p>
+  </div>
+</div>
+
+{% if not configured %}
+<div class="alert alert-warning">
+  <h6 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> 大语言模型尚未配置</h6>
+  <p class="mb-2 small">
+    系统当前没有可用的 API Key，<strong>不会生成任何内容</strong>（本系统不会用伪造数据代替模型返回）。
+    配置方式二选一：
+  </p>
+  <ul class="small mb-2">
+    <li>在项目根目录 <code>.env</code> 中设置 <code>DEEPSEEK_API_KEY</code> 后重启服务；</li>
+    <li>{% if current_user.is_admin %}<a href="{{ url_for('admin.settings') }}" class="alert-link">进入【系统管理 → 模型与系统设置】填写 API Key{% else %}由管理员在【系统管理 → 模型与系统设置】中填写 API Key{% endif %}</a>。</li>
+  </ul>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">生成参数</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label" for="requirementSelect">软件需求 <span class="text-danger">*</span></label>
+          <select class="form-select" id="requirementSelect">
+            <option value="">请选择软件需求</option>
+            {% for r in requirements %}
+            <option value="{{ r.id }}" {{ 'selected' if selected and selected.id == r.id }}>
+              {{ r.code }} {{ r.name }}
+            </option>
+            {% endfor %}
+          </select>
+          {% if not requirements %}
+          <div class="form-text text-danger">暂无可用需求，请先到【软件需求】中创建。</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="count">生成数量</label>
+          <select class="form-select" id="count">
+            {% for n in [3, 5, 8, 10] %}
+            <option value="{{ n }}" {{ 'selected' if n == 5 }}>{{ n }} 条</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">单次最多生成 10 条，建议覆盖正常与异常场景。</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="extra">补充说明（可选）</label>
+          <textarea class="form-control" id="extra" rows="3"
+                    placeholder="例如：重点关注密码错误 5 次锁定账号的边界场景"></textarea>
+        </div>
+
+        <button class="btn btn-primary w-100" id="genBtn" type="button"
+                data-url="{{ url_for('testcases.generate') }}"
+                {{ 'disabled' if not requirements or not configured }}>
+          <i class="bi bi-magic"></i> 提交生成
+        </button>
+
+        <div class="gen-status mt-3 small" id="genStatus" aria-live="polite">
+          <span class="text-muted">尚未提交生成任务。</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-header bg-white fw-semibold">需求预览</div>
+      <div class="card-body small" id="reqPreview">
+        <span class="text-muted">选择需求后显示其描述与业务规则，作为模型生成的输入。</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <form method="post" action="{{ url_for('testcases.save_batch') }}" id="saveForm">
+      <input type="hidden" name="requirement_id" id="saveRequirementId"
+             value="{{ selected.id if selected else '' }}">
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span class="fw-semibold">生成结果（可编辑后保存）</span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge text-bg-light" id="genCount">0 条</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleAll" disabled>全选/全不选</button>
+          </div>
+        </div>
+
+        <div class="table-responsive" style="max-height:62vh;">
+          <table class="table table-sm align-middle mb-0" id="resultTable">
+            <thead class="sticky-top">
+              <tr>
+                <th style="width:36px;"></th>
+                <th style="width:170px;">用例名称</th>
+                <th style="width:110px;">分类</th>
+                <th style="width:80px;">优先级</th>
+                <th style="width:150px;">前置条件</th>
+                <th style="width:200px;">测试步骤</th>
+                <th style="width:140px;">测试数据</th>
+                <th style="width:180px;">预期结果</th>
+                <th style="width:44px;"></th>
+              </tr>
+            </thead>
+            <tbody id="resultBody">
+              {% if results %}
+                {{ result_rows(results) }}
+              {% else %}
+              <tr id="emptyRow">
+                <td colspan="9" class="text-center text-muted py-5">
+                  尚未生成内容。请在左侧选择需求并点击「提交生成」。<br>
+                  <span class="small">生成结果仅用于预览，保存前可逐条修改或删除。</span>
+                </td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <span class="text-muted small">
+            <i class="bi bi-info-circle"></i> 保存的用例来源标记为「大语言模型生成」，状态为「已确认」。
+          </span>
+          <button class="btn btn-success" type="submit" id="saveBtn"
+                  {{ 'disabled' if not results }}>
+            <i class="bi bi-save"></i> 保存选中的用例
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<datalist id="categoryOptions">
+  <option value="功能测试"><option value="边界测试"><option value="异常测试">
+  <option value="权限测试"><option value="性能测试"><option value="兼容性测试">
+</datalist>
+
+<script id="requirementData" type="application/json">{{ requirements_map | tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/generate.js') }}"></script>
+{% endblock %}
